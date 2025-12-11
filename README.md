@@ -1,401 +1,258 @@
-# SAR Preprocessing Toolkit
+# Mini Stack - SAR Interferometry Processing System
 
-A Python toolkit for Synthetic Aperture Radar (SAR) image preprocessing, providing radiometric calibration, geometric correction, and orthorectification capabilities.
+A comprehensive Synthetic Aperture Radar (SAR) interferometry processing framework designed for time-series InSAR analysis using the mini-stack approach. This system integrates with DORIS and StaMPS to perform Differential SAR Interferometry (DInSAR) and Persistent Scatterer (PS) analysis.
 
 ## Overview
 
-This toolkit is designed for preprocessing SAR satellite imagery, with primary support for LT-1 satellite data. It provides a complete pipeline from raw SAR data to geocoded, radiometrically calibrated products.
+Mini Stack is a Python-based processing pipeline that handles multi-temporal SAR data to detect ground deformation patterns. It implements an efficient "mini-stack" approach for processing large numbers of SAR image pairs by grouping them temporally and processing them in stages.
 
-## Features
+### Key Features
 
-- **Radiometric Calibration**: Convert raw digital numbers (DN) to calibrated backscatter coefficients (σ₀)
-- **Geometric Correction**: Transform slant-range imagery to ground-range using RPC (Rational Polynomial Coefficients) models
-- **Orthorectification**: Generate orthorectified products with customizable spatial resolution and projection
-- **Polarimetric Processing**: Support for single and dual-polarization SAR data
-- **Incidence Angle Calculation**: Compute local incidence angles for terrain correction
-- **Tiled Processing**: Memory-efficient block-based processing for large images
+- **Mini-Stack Processing**: Efficient temporal grouping and processing of SAR interferograms
+- **Differential InSAR**: Advanced DInSAR compression and analysis
+- **Phase Linking**: Sophisticated phase linking techniques for improved accuracy
+- **Statistical Analysis**: Kolmogorov-Smirnov testing for data quality assessment
+- **DORIS Integration**: Seamless integration with DORIS processing workflows
+- **StaMPS Support**: Full support for StaMPS PS analysis framework
+- **Batch Processing**: Multi-threaded batch processing capabilities
+- **Quality Filtering**: Advanced filtering mechanisms for reliable results
 
-## Supported Satellites
+## Technology Stack
 
-- **LT-1** (Luojia-1): Chinese commercial SAR satellite constellation
-- Extensible architecture for other SAR sensors
+- **Language**: Python 2.x
+- **Core Libraries**:
+  - GDAL/OGR (geospatial data handling)
+  - NumPy & SciPy (numerical computing)
+  - scipy.optimize, scipy.stats, scipy.linalg
+- **External Tools**:
+  - DORIS (Delft object-oriented Radar Interferometric Software)
+  - StaMPS (Stanford Method for Persistent Scatterers)
+  - MATLAB (for StaMPS analysis)
+
+## System Requirements
+
+### Hardware Requirements
+- **RAM**: Minimum 16GB (32GB+ recommended for large datasets)
+- **Storage**: Adequate space for SAR data (typically 100GB+ per project)
+- **CPU**: Multi-core processor recommended for parallel processing
+
+### Software Requirements
+- Python 2.7
+- GDAL >= 2.0
+- NumPy >= 1.10
+- SciPy >= 0.17
+- DORIS (latest stable version)
+- StaMPS (version 4.x or higher)
+- MATLAB (for StaMPS processing)
 
 ## Installation
 
-### Requirements
-
-- Python 3.7+
-- GDAL/OGR libraries
-
-### Dependencies
+### 1. Clone the Repository
 
 ```bash
-pip install -r requirements.txt
+git clone <repository-url>
+cd mini_stack
 ```
 
-Core dependencies:
-- `numpy` - Numerical computing
-- `scipy` - Scientific computing
-- `rasterio` - Geospatial raster I/O
-- `h5py` - HDF5 file handling
-- `matplotlib` - Visualization
-- `opencv-python` - Image processing
-- `pyproj` - Cartographic projections
-- `scikit-image` - Image processing algorithms
-- `GDAL` - Geospatial data abstraction library
-- `pillow` - Image file handling
-
-## Quick Start
-
-### Basic Usage
-
-```python
-from utils import read_tiff, calculate_tile_size
-from calibration import estimate_calibration_from_meta, radiometric_calibration_lt1_with_linear
-from rpc import RPCModel
-from geometric_correction import ortho_rectify_by_rpc
-
-# 1. Read SAR image and metadata
-image_data, profile = read_tiff("input.tiff")
-cal_params, product_level = estimate_calibration_from_meta("metadata.xml")
-
-# 2. Radiometric calibration
-sigma0_linear, sigma0_db = radiometric_calibration_lt1_with_linear(
-    intensity_data,
-    cal_params,
-    polarization="VV"
-)
-
-# 3. Geometric correction with RPC
-rpc_model = RPCModel.from_xml("rpc.xml")
-ortho_data, ortho_meta = ortho_rectify_by_rpc(
-    "sigma0.tif",
-    rpc_model,
-    output_path="ortho_sigma0.tif",
-    output_crs="EPSG:4326",
-    pixel_size=10.0  # 10m resolution
-)
-```
-
-### Complete Processing Pipeline
-
-See `main_example.py` for a complete processing workflow:
+### 2. Install Python Dependencies
 
 ```bash
-python main_example.py
+# Install system dependencies (Ubuntu/Debian)
+sudo apt-get update
+sudo apt-get install python2.7 python-pip
+sudo apt-get install gdal-bin libgdal-dev python-gdal
+
+# Install Python packages
+pip install numpy scipy
 ```
 
-This script demonstrates:
-1. Metadata extraction
-2. Radiometric calibration (amplitude → intensity → σ₀)
-3. RPC-based orthorectification
-4. Output generation in GeoTIFF format
+### 3. Install DORIS
 
-## Module Reference
-
-### calibration.py
-
-Radiometric calibration functions for converting raw SAR intensities to calibrated backscatter.
-
-**Key Functions:**
-- `radiometric_calibration_lt1()` - LT-1 calibration (dB output)
-- `radiometric_calibration_lt1_with_linear()` - Returns both linear and dB values
-- `estimate_calibration_from_meta()` - Extract calibration parameters from metadata
-- `get_polarization_type()` - Parse polarization information
-
-**Calibration Formula (LT-1):**
-```
-σ₀ (dB) = 10 × log₁₀(I × (q/32767)²) - K
-
-where:
-  I = intensity (DN²)
-  q = quantization level
-  K = calibration constant
+```bash
+# Download and install DORIS from the official repository
+# Follow instructions at: https://github.com/TUDelftGeodesy/Doris
 ```
 
-### geometric_correction.py
+### 4. Install StaMPS
 
-RPC-based geometric correction and orthorectification.
-
-**Key Functions:**
-- `ortho_rectify_by_rpc()` - Main orthorectification function
-- `_make_coord_grid_for_block()` - Generate coordinate grids
-- `_transform_coordinates_batch()` - Efficient batch coordinate transformation
-
-**Features:**
-- DEM-based height correction (optional)
-- Customizable output projection (EPSG codes)
-- Memory-efficient tiled processing
-- Supports both geographic (lat/lon) and projected coordinate systems
-
-### rpc.py
-
-RPC (Rational Polynomial Coefficients) model implementation.
-
-**Key Classes:**
-- `RPCModel` - RPC coefficient container and transformation functions
-
-**Supported Formats:**
-- XML metadata files
-- Plain text RPC files
-
-### meta.py
-
-Metadata parsing and bilinear geographic mapping model.
-
-**Key Classes:**
-- `GeoMappingModel` - Bilinear transformation for approximate georeferencing
-
-**Use Case:**
-- Fallback when RPC files are not available
-- Quick approximate geolocation
-
-### pol_maps.py
-
-Polarimetric processing utilities.
-
-**Key Functions:**
-- `amplitude_block()` - Compute amplitude from complex SAR data
-- `intensity_block()` - Compute intensity from amplitude
-
-### incidence.py
-
-Local incidence angle calculation for terrain correction.
-
-### utils.py
-
-Utility functions for I/O and data management.
-
-**Key Functions:**
-- `read_tiff()` - Read GeoTIFF files
-- `iter_tiles()` - Generate tile windows for block processing
-- `calculate_tile_size()` - Determine optimal tile size based on image dimensions
-
-## Processing Workflow
-
-```
-┌─────────────────┐
-│  Raw SAR Data   │
-│   (Complex/     │
-│   Intensity)    │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│   Amplitude     │  amplitude_block()
-│   Extraction    │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│   Intensity     │  intensity_block()
-│   Calculation   │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│   Radiometric   │  radiometric_calibration_lt1()
-│   Calibration   │  → σ₀ (linear & dB)
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│   Geometric     │  ortho_rectify_by_rpc()
-│   Correction    │  → Georeferenced GeoTIFF
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Final Product  │
-│   (σ₀ GeoTIFF)  │
-└─────────────────┘
+```bash
+# Download StaMPS from: https://homepages.see.leeds.ac.uk/~earahoo/stamps/
+# Follow the installation guide for your operating system
+# Set environment variables:
+export STAMPS=/path/to/stamps
+export PATH=$PATH:$STAMPS/bin
 ```
 
-## Output Products
+### 5. Configure MATLAB (if using StaMPS MATLAB scripts)
 
-The processing pipeline generates the following products:
+Ensure MATLAB is installed and the StaMPS MATLAB scripts are in your MATLAB path.
 
-| Product | Description | Format |
-|---------|-------------|--------|
-| `01_amplitude.tif` | Amplitude image (√I) | GeoTIFF (float32) |
-| `01_intensity.tif` | Intensity image (I) | GeoTIFF (float32) |
-| `02_sigma0_linear.tif` | Calibrated σ₀ (linear) | GeoTIFF (float32) |
-| `02_sigma0dB.tif` | Calibrated σ₀ (dB) | GeoTIFF (float32) |
-| `03_ortho_rpc_sigma0_linear.tif` | Orthorectified σ₀ | GeoTIFF (float32, geocoded) |
+## Project Structure
+
+```
+mini_stack/
+├── Mini stack/              # Main processing pipeline
+│   ├── mini_stack_prepare.py                    # Data preparation & scheduling
+│   ├── insar2compress_input_crop_path.py        # Input processing
+│   ├── mini_stack_compress_path_DSInSAR.py      # DInSAR compression
+│   ├── mini_stack_time_compress_step_*.py       # Time-series compression stages
+│   ├── concatenate_mini_stack_compress_minus_sign.py  # Concatenation
+│   ├── Kol_smi_test.py                          # Statistical testing
+│   └── dem.dorisin                              # DEM configuration
+│
+└── DS_Stamps/               # DORIS/StaMPS integration
+    ├── DS_make.py                               # Main processing orchestrator
+    ├── phase_linking_patch.py                   # Phase linking
+    ├── shp_filter_patch.py                      # Quality filtering
+    ├── DSInSAR_master_slave_combination.py      # Image combination
+    ├── TOPS_Data_multilook.py                   # Multi-look processing
+    └── ps_batch.m                               # MATLAB batch script
+```
 
 ## Configuration
 
-Edit `main_example.py` to configure processing parameters:
+### 1. DEM Configuration
 
-```python
-# Input files
-ROOT = r"E:/LT1/"
-SRC_TIFF = ROOT + "1.tiff"      # SAR image
-META_XML = ROOT + "1_meta.xml"  # Metadata
-RPC_XML = ROOT + "1.rpc"        # RPC file
-DEM_TIF = None                  # Optional DEM
-
-# Output settings
-OUT_DIR = ROOT + "output/"
-
-# Geometric correction parameters
-output_crs = "EPSG:4326"        # WGS84 geographic
-pixel_size = 10.0               # 10 meter resolution
-```
-
-## Performance Considerations
-
-- **Memory Usage**: Tiled processing is used to handle large images efficiently
-- **Tile Size**: Automatically calculated based on image dimensions (typically 512-2048 pixels)
-- **Processing Time**: Varies with image size and tile size
-  - Example: 10000×10000 image typically processes in 5-15 minutes
-- **Disk I/O**: LZW compression is applied to output GeoTIFFs to reduce file size
-
-## Coordinate Systems
-
-### Supported Projections
-
-Any EPSG-defined coordinate system, commonly:
-- **EPSG:4326** - WGS84 Geographic (lat/lon)
-- **EPSG:3857** - Web Mercator
-- **EPSG:32601-32660** - WGS84 UTM Northern Hemisphere
-- **EPSG:32701-32760** - WGS84 UTM Southern Hemisphere
-
-### RPC Model Requirements
-
-- RPC coefficients must be provided in XML or text format
-- Coordinates are internally handled in WGS84 (lat/lon)
-- Output can be reprojected to any specified CRS
-
-## Troubleshooting
-
-### Common Issues
-
-**Issue**: `ImportError: GDAL module not found`
-```bash
-# Solution: Install GDAL with proper bindings
-conda install gdal
-# or
-pip install GDAL==$(gdal-config --version)
-```
-
-**Issue**: `Memory error during processing`
-```python
-# Solution: Reduce tile size in utils.calculate_tile_size()
-TILE_SIZE = 512  # Reduce from default
-```
-
-**Issue**: `RPC file not found or invalid`
-```python
-# Solution: Verify RPC file format
-rpc = RPCModel.from_xml("rpc.xml")  # For XML
-# or
-rpc = RPCModel.from_group_text_file("rpc.rpc")  # For text
-```
-
-**Issue**: `Geometric correction produces shifted results`
-- Verify RPC coefficients are correct
-- Check that DEM (if used) is in correct coordinate system
-- Ensure pixel size is appropriate for the sensor resolution
-
-## Data Formats
-
-### Input Requirements
-
-- **SAR Image**: GeoTIFF or similar raster format readable by `rasterio`
-- **Metadata**: XML file containing calibration parameters and sensor info
-- **RPC File**: XML or text file with RPC coefficients (optional for Level-1 products)
-- **DEM** (optional): GeoTIFF in any projection (auto-reprojected internally)
-
-### Metadata Structure (LT-1)
-
-Expected XML structure:
-```xml
-<product>
-  <generalHeader>
-    <itemName>LT1A_...</itemName>
-  </generalHeader>
-  <acquisitionInfo>
-    <polarisationMode>Single</polarisationMode>
-  </acquisitionInfo>
-  <imageDataInfo>
-    <imageDataFormat>
-      <calibrationConst K="..." q="..." />
-    </imageDataFormat>
-  </imageDataInfo>
-</product>
-```
-
-## Contributing
-
-Contributions are welcome! Please follow these guidelines:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/new-feature`)
-3. Commit your changes with clear messages
-4. Add tests for new functionality
-5. Submit a pull request
-
-### Development Setup
+Edit the `dem.dorisin` file to configure your Digital Elevation Model:
 
 ```bash
-# Clone repository
-git clone https://github.com/yourusername/SARpreprocessing.git
-cd SARpreprocessing
-
-# Install development dependencies
-pip install -r requirements.txt
-
-# Run example
-python main_example.py
+cd "Mini stack"  # or DS_Stamps
+nano dem.dorisin
 ```
 
-## Citation
+Key parameters to configure:
+- DEM file path
+- DEM format (e.g., SRTM, ASTER)
+- Memory allocation
+- Processing verbosity
 
-If you use this toolkit in your research, please cite:
+### 2. Input Data Preparation
 
-```bibtex
-@software{sar_preprocessing_toolkit,
-  title = {SAR Preprocessing Toolkit},
-  author = {Wu, Wenhao},
-  year = {2025},
-  url = {https://github.com/yourusername/SARpreprocessing}
-}
+Prepare your input data files:
+- `Int_Data_merge.list` - List of interferogram pairs
+- `day.1.in` or `slcs.list` - SLC image schedule
+- Ensure SAR data is in MFF format with .res metadata
+
+## Usage Workflow
+
+### Step 1: Data Preparation
+
+```bash
+cd "Mini stack"
+python mini_stack_prepare.py
 ```
+
+This script:
+- Reads interferogram list and master/slave dates
+- Organizes images into temporal mini-stacks
+- Generates processing schedule (`mini_stack_combine.txt`)
+- Calculates temporal baselines
+
+### Step 2: Mini-Stack Compression
+
+Run the compression steps sequentially:
+
+```bash
+python mini_stack_time_compress_step_3.py
+python mini_stack_time_compress_step_5.py
+python mini_stack_time_compress_step_8.py
+python mini_stack_time_compress_step_11.py
+python mini_stack_time_compress_step_14.py
+```
+
+Each step performs progressive compression and relative master processing.
+
+### Step 3: DInSAR Processing
+
+```bash
+python mini_stack_compress_path_DSInSAR.py
+python insar2compress_input_crop_path.py
+```
+
+### Step 4: DORIS Integration
+
+```bash
+cd ../DS_Stamps
+python DS_make.py
+```
+
+This orchestrates:
+- `make_coarse` - Coarse coregistration
+- `make_coreg_simple` - Fine coregistration
+- `make_dems` - DEM processing
+- `make_ifgs` - Interferogram generation
+
+### Step 5: Phase Analysis
+
+```bash
+python phase_linking_patch.py
+python shp_filter_patch.py
+```
+
+### Step 6: StaMPS Processing
+
+```bash
+# Prepare for StaMPS
+python insar2ps_input_path.py
+
+# Run StaMPS (via MATLAB or command line)
+mt_prep
+stamps(1,1)
+stamps(2,2)
+# ... continue with StaMPS processing steps
+```
+
+
+# run and build
+FROM ubuntu:16.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    python2.7 \
+    python-pip \
+    gdal-bin \
+    libgdal-dev \
+    python-gdal \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages
+RUN pip install numpy scipy
+
+# Copy project files
+COPY . /app/mini_stack
+WORKDIR /app/mini_stack
+
+# Set environment variables
+ENV PYTHONPATH=/app/mini_stack
+
+CMD ["/bin/bash"]
+```
+
+
+
+- **Parallel Processing**: Utilize multi-core processors by adjusting batch processing parameters
+- **Memory Management**: Monitor RAM usage and adjust processing chunk sizes
+- **Storage**: Use SSD for faster I/O operations
+- **Network**: For distributed processing, ensure high-bandwidth network connectivity
+
+
+
+## Support
+
+For issues and questions:
+- Check the troubleshooting section
+- Review DORIS documentation: https://github.com/TUDelftGeodesy/Doris
+- Review StaMPS documentation: https://homepages.see.leeds.ac.uk/~earahoo/stamps/
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Please refer to the license file or contact the project maintainers for licensing information.
 
-## Acknowledgments
+## Citation
 
-- LT-1 satellite data format specifications
-- RPC geometric correction algorithms from GDAL
-- SAR radiometric calibration methods from ESA and CSA documentation
-
-## Contact
-
-- **Author**: Wu Wenhao
-- **QQ**: 460249274
-- **Issues**: Please report bugs and feature requests via [GitHub Issues](https://github.com/yourusername/SARpreprocessing/issues)
-
-## References
-
-### SAR Processing Literature
-
-1. Cumming, I. G., & Wong, F. H. (2005). *Digital Processing of Synthetic Aperture Radar Data*. Artech House.
-2. Moreira, A., et al. (2013). "A tutorial on synthetic aperture radar." *IEEE Geoscience and Remote Sensing Magazine*, 1(1), 6-43.
-3. ESA Sentinel-1 Toolbox - Radiometric Calibration Documentation
-
-### Related Tools
-
-- **SNAP** (Sentinel Application Platform): ESA's official SAR processing software
-- **GAMMA**: Commercial SAR/InSAR processing suite
-- **ISCE** (InSAR Scientific Computing Environment): NASA/JPL InSAR processing framework
-- **PyAR**: Python-based SAR processing library
-
----
-
-**Version**: 1.0.0
-**Last Updated**: December 2025
-**Tested On**: Ubuntu 16.04.7 LTS, Python 3.7+
+If you use this software in your research, please cite:
+- DORIS: https://github.com/TUDelftGeodesy/Doris
+- StaMPS: Hooper, A., et al. (2012). "Recent advances in SAR interferometry time series analysis for measuring crustal deformation."
